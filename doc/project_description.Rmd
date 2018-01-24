@@ -82,4 +82,6 @@ proj/
 
 The root README.md should contain your name and an abstract of your findings. 
 
-
+- won't be doing predictions
+- consider similarities and differences between authors and use patterns to characterize the differences in their writing styles
+- can do whatever you want with data as long as you write a compelling story about similarities and differences between authors. 
