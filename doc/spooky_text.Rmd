@@ -1,0 +1,455 @@
+---
+title: "Spooky Poetry Text Analysis"
+author: "Sophie Beiers"
+date: "1/27/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+### Introduction
+The goal of this project is to analyze the poetry of three "spooky" poets: H.P. Lovecraft (`HPL`), Mary Shelly (`MWS`), and Edgar Allen Poe (`EAP`). Below, I assess their similarities and differences in semantics, common words and themes and length of work. 
+
+#### Libraries Needed
+Code by Cindy Rush, Statistics Professor of Columbia University.
+```{r, message = F, warning = F, message = F}
+packages.used <- c("ggplot2", "dplyr", "tibble", "tidyr",  "stringr", "tidytext", "topicmodels", "wordcloud", "ggridges", "sentimentr", "tm")
+
+# check packages that need to be installed.
+packages.needed <- setdiff(packages.used, intersect(installed.packages()[,1], packages.used))
+
+# install additional packages
+if(length(packages.needed) > 0) {
+  install.packages(packages.needed, dependencies = TRUE, repos = 'http://cran.us.r-project.org')
+}
+
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(stringr)
+library(tidytext)
+library(topicmodels)
+library(wordcloud)
+library(ggridges)
+library(sentimentr)
+library(tm)
+
+
+source("./lib/multiplot.R")
+```
+
+### Data & Cleaning
+To reproduce, download spooky.csv into your Documents/data folder. 
+```{r}
+spooky <- read.csv('./data/spooky.csv', as.is = TRUE)
+#sum(is.na(spooky)) # no NA's in data 
+spooky$author <- as.factor(spooky$author) # Make "author" a factor
+```
+
+To begin, I'll use TidyText's "unnest_tokens" to format the data into a table with one word per row and the number of times that word appears per author. 
+```{r}
+spooky_wrd <- spooky %>%
+  unnest_tokens(word, text) %>% 
+  count(author, word, sort = TRUE) %>% # sorts by most common words
+  ungroup()
+```
+
+### Analysis
+#### Pronouns
+Before removing "stop words" from the authors' pieces, I was curious to see which authors used certain personal pronouns more than others. 
+```{r}
+pronouns <- c("i", "we", "us", "they", "them", "he", "she", "you", "him", "her")
+spooky_pronouns <- filter(spooky_wrd, word %in% pronouns)
+
+
+pronoun_plot <- spooky_wrd %>%
+  filter(word %in% pronouns) 
+
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/pronounplot.png") 
+  ggplot(pronoun_plot, aes(x = reorder(word, -n), y = n)) +
+  geom_bar(aes(color = author, fill = author), stat = "identity") +
+  xlab("Pronouns") +
+  ylab("Number of Occurences") +
+  theme_light()
+dev.off()
+```
+From the plot, we can see that MWS and EAP tend to talk about themselves more often than HPL. MWS writes about other women (her, she) more frequently than the male authors, perhaps not surprisingly. HPL seems to rarely refer to women in his work, though he is also seemingly less likely than the other authors to use pronouns in his writing at all. 
+
+Next, I compare the average sentence lengths and word lengths of each author. 
+```{r}
+# add length column
+spooky <- spooky %>% 
+  mutate(sen_length = str_length(text)) 
+
+spooky <- spooky %>%
+  group_by(author) %>%
+  mutate(Avg = round(mean(sen_length), 2)) %>%
+  ungroup() %>%
+  mutate(author = reorder(author, Avg)) 
+
+# Sentence length 
+slength <- ggplot(spooky) +
+      geom_density_ridges(aes(sen_length, author, fill = author)) +
+      scale_x_log10() +
+      theme(legend.position = "none") +
+      labs(x = NULL) +
+      ggtitle("Sentence length [# characters]")
+
+# Word length
+spooky_wrd <- spooky_wrd %>% 
+  mutate(word_length = str_length(word))
+
+wlength <- ggplot(spooky_wrd) +
+      geom_density(aes(word_length, fill = author), bw = 0.05, alpha = 0.4) +
+      scale_x_log10() +
+      theme(legend.position = "none") +
+      ggtitle("Word length [# characters]") +
+      labs(x = NULL)
+
+# Visualizations
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/swlengths.png")
+layout <- matrix(c(1, 1, 1, 1, NA, NA, 2, 2, 2, 2, 2, 2), 2, 6, byrow = TRUE)
+multiplot(slength, wlength, layout = layout)
+dev.off()
+
+```
+From the visualizations, we can see that EAP's sentence length is more variable than the other two authors; he has more sentences that are short *and* long, and thus, actually has more sentences in the dataset overall than the two other authors. MWS and HPL's work follow similar trends in terms of sentence length, though it seems that MWS uses longer sentences slightly more frequently. The density chart shows us that the authors use similar word lengths throughout their work. 
+
+I then added a column to the table spooky_wrd for the total amount of words each author uses in his/her work to assess the frequency of each word used. Next, I got rid of all the "stopwords" (including the pronouns) in the data to make analysis more interesting. 
+```{r}
+total_wrds <- spooky_wrd %>% 
+  group_by(author) %>% 
+  summarize(total = sum(n))
+
+spooky_wrd <- left_join(spooky_wrd, total_wrds, by = "author")
+
+# rid of stop words
+spooky_wrd_clean <- spooky_wrd %>% 
+  anti_join(stop_words, by = "word") 
+
+# added rank and frequency values 
+spooky_wrd_clean <- spooky_wrd_clean %>% 
+  group_by(author) %>% 
+  mutate(rank = row_number(), freq = n/total) 
+
+head(spooky_wrd_clean)
+```
+
+### Analysis
+#### Top 10 Words of Each Author
+I visualized each author's top ten words used in his/her work.
+```{r, message = FALSE, warning = FALSE}
+# Top 10 Words Dataframes
+top10 <- spooky_wrd_clean %>%
+         filter(rank <= 10)
+
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/top10.png")
+top10 %>% 
+  ggplot(., aes(x = reorder(word, n), y = n)) +
+  geom_bar(aes(color = author, fill = author), stat = 'identity') +
+  facet_wrap(~author) + 
+  coord_flip() +
+  theme_light() +
+  ylab("Number of Occurences") +
+  xlab("Most Common Words")
+dev.off()
+```
+
+Some of the authors' top ten most common words overlap; all three authors like to write about "time" and "day." We can also see, however, that the two male authors EAP and HPL have slightly more overlapping top words than with MWS. Both male authors frequently use the words "night" and "found." Other than the words all three authors have in common, EAP overlaps with MWS on the word "eyes" and HPL doesn't overlap with MWS at all. Given that MWS's top three words used are "life," "love," and "heart," we may assume that the content of MWS's work might be more emotional in nature compared to her male counterparts. Her frequent use of the name "Raymond" may be from her work "The Last Man."
+
+To visualize each author's top words further, I created three wordclouds. First, Mary Shelley's.
+```{r, warning = FALSE, message = FALSE}
+# Word lists by author
+MWSwords <- spooky_wrd_clean %>% 
+  filter(author == "MWS") %>%
+  mutate(freq = n/total, rank = row_number()) %>% 
+  arrange(desc(n))
+
+HPLwords <- spooky_wrd_clean %>% 
+  filter(author == "HPL") %>%
+  mutate(freq = n/total, rank = row_number()) %>% 
+  arrange(desc(n))
+
+EAPwords <- spooky_wrd_clean %>% 
+  filter(author == "EAP") %>%
+  mutate(freq = n/total, rank = row_number()) %>% 
+  arrange(desc(n))
+
+# Word Clouds
+# MWS wordcloud
+#png("../figs/Workcloud_all.png")
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/mwsWC.png")
+wordcloud(words = MWSwords$word, freq = MWSwords$freq, max.words = 100, 
+                  random.order = FALSE, rot.per = 0.35, colors = brewer.pal(6, "Dark2"))
+dev.off()
+```
+Next, HP Lovecraft's word cloud:
+
+```{r}
+# HPL wordcloud
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/hplWC.png")
+wordcloud(words = HPLwords$word, freq = HPLwords$freq, max.words = 100, 
+                  random.order = FALSE, rot.per = 0.35, colors = brewer.pal(6, "Dark2"))
+dev.off()
+```
+
+Lastly, Poe's. 
+```{r}
+# EAP wordcloud
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/eapWC.png")
+wordcloud(words = EAPwords$word, freq = EAPwords$freq, max.words = 100, 
+                  random.order = FALSE, rot.per = 0.35, colors = brewer.pal(6, "Dark2"))
+dev.off()
+```
+
+Through the word clouds, we can see that MWS's work is almost certainly more emotional than her counterparts'. Her work tends to paint a seemingly beautiful picture of nature, earth, family combined with suffering and grief. HPL's wordcloud exemplifies his use of creepier stories in his work. By linking together a few words like "street," "door," "horror," "dark," "terrible," "dream," "hideous," we can almost recreate a story ourselves. EAP's wordcloud doesn't immediately introduce an obvious (to me) theme other than potentially something spiritual, so I'll dig further through sentiment analysis next.
+
+#### Sentiment Analysis 
+#### Positive v. Negative 
+Given all three authors have a known tendency toward spooky writing, I first wanted to assess whether sentiments of each author's words were more positive or negative. I used the "bing" lexicon to assess positive and negative sentiments and plotted the net sentiment of each word. The first graph shows us the top ten most positive and most negative words used by all authors; the second chart illuminates the words that contributed to positive and negative sentiment, per author. 
+```{r, message = FALSE}
+pn_sentiments <- spooky_wrd_clean %>%
+  inner_join(get_sentiments("bing"), by = c(word = "word"))
+
+# Negative and positive sentiments by word/ author
+author_sent <- pn_sentiments %>%
+  count(sentiment, word, wt = n) %>%
+  ungroup() %>%
+  filter(nn >= 30) %>% # only look at words that appear more than 30 times
+  mutate(nn = ifelse(sentiment == "negative", -nn, nn)) %>%
+  mutate(word = reorder(word, nn)) %>%
+  ggplot(aes(word, nn, fill = sentiment)) +
+  geom_bar(alpha = 0.8, stat = "identity", show.legend = FALSE) +
+  theme_light() +
+  theme(axis.text.x = element_blank(), axis.ticks = element_blank()) +
+  ylab("Word Contribution to Sentiment") + 
+  xlab("Words") +
+  facet_wrap(~author, scales = "free_x")
+
+# Top 10 positive and negative words used 
+total_sent <- pn_sentiments %>%
+  subset(select = c(word, sentiment, n)) %>% 
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ggplot(aes(reorder(word, n), n, fill = sentiment)) +
+    geom_bar(alpha = 0.8, stat = "identity", show.legend = FALSE) +
+    facet_wrap(~sentiment, scales = "free_y") +
+    labs(y = "Contribution To Sentiment", x = NULL) +
+    ggtitle("Top Pos & Neg Words") +
+    theme_light() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    coord_flip()
+
+# Total negative and positive words used by authors
+author_sent2 <- pn_sentiments %>%
+  count(author, sentiment, wt = n) %>%
+  ggplot(aes(sentiment, nn, fill = sentiment)) +
+  geom_bar(alpha = 0.8, stat = "identity", show.legend = FALSE) +
+  facet_wrap(~author) +
+  labs(y = NULL, x = NULL) + 
+  ggtitle("# of Pos/Neg Words")
+  theme_light() 
+
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/posnegwords.png")
+layout <- matrix(c(1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3), 2, 11, byrow = TRUE)
+multiplot(author_sent2, author_sent, total_sent, layout = layout)
+dev.off()
+```
+From my analysis, it looks as though MWS uses words that are more frequently categorized as positive as well as more words that are categorized as negative in comparison to both EAP and HPL. It's possible that MWS simply writes more words that are in the "bing" lexicon, but her positive words almost double HPL's number of positive words, so I want to dig a little further. I visualize the sentiment score of each author's top 1000 used words below with a heat map. A more positive word will appear as a light yellow/green and a negative word will appear more blue.  
+```{r}
+pn_sentiments2 <- spooky_wrd_clean %>%
+  inner_join(get_sentiments("afinn"), by = c(word = "word")) %>% 
+  group_by(author) %>% 
+  mutate(rank = row_number()) %>% 
+  filter(rank < 1000) %>% 
+  ungroup() %>% 
+  mutate(x = n * score)
+
+hm.palette <- colorRampPalette(rev(brewer.pal(7, 'GnBu')), space='Lab')
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/posneghm.png")
+ggplot(data = pn_sentiments2, aes(x = rank, y = author)) +
+  geom_tile(aes(fill = score), na.rm = TRUE) +
+  scale_fill_gradientn(colours = hm.palette(100)) +
+  labs(x = "First 1000 Most Used Words", y = "Authors")
+dev.off()
+```
+The heatmap depicts each author's most commonly used words and their corresponding negative or positive sentiments. We can see chunks of both positive and negative words in all authors' writing, though MWS seems to have the lightest chunk of the group and HPL and EAP have darker chunks. 
+
+Ironically, while MWS seems to be the most "positive" author, she still uses a quarter more negative words than positive words in her pieces; this leads me to think that it's possible she may be negating the positive words in a way that makes the overall sentiment actually *negative.* Thus, I turn to the "sentimentr" package to analyze multiple words at a time. 
+
+#### MWS 
+The text in our spooky data is already split up into sentences, so I return to our original spooky data for the following analyses. 
+```{r, warning = FALSE, message= FALSE}
+## WHY THIS??
+author_sentence_sent <- spooky %>%
+  group_by(author) %>%
+  mutate(sentence_n = 1:n(),
+    index = round(sentence_n / n(), 2)) %>%
+  unnest_tokens(word, text) %>%
+  inner_join(get_sentiments("afinn")) %>%
+  group_by(author, index) %>%
+  summarize(sentiment = sum(score)) %>%
+  arrange(desc(sentiment))
+```
+To examine whether MWS' high scores on positivity in her work was actually due to negated positive words, I used bigrams and the "AFINN" lexicon to view all words preceded by a negation; From the visualization, we can see which positive-seeming words contribute most to mis-classification. 
+
+```{r}
+spooky_MWS <- spooky %>% 
+  filter(author == "MWS")
+  
+bigrams <- spooky_MWS %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2)
+bi_sep <- bigrams %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+no_words <- c("not", "no", "never", "without")
+AFINN <- get_sentiments("afinn")
+no_bigram <- bi_sep %>% 
+  filter(word1 %in% no_words) %>% 
+  inner_join(AFINN, by = c(word2 = "word")) %>% 
+  count(word2, score, sort = TRUE) %>% 
+  ungroup()
+
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/negwrds.png")
+no_bigram %>%
+  mutate(contribution = n * score) %>%
+  arrange(desc(abs(contribution))) %>%
+  head(20) %>%
+  mutate(word2 = reorder(word2, contribution)) %>%
+  ggplot(aes(word2, n * score, fill = n * score > 0)) +
+  geom_col(show.legend = FALSE, alpha = 0.8) +
+  xlab("Words Preceded by Negations") +
+  ylab("Contribution to Sentiment") +
+  coord_flip() +
+  theme_light()
+dev.off()
+```
+The word "love" has a positive connotation, but in MWS's work, "love" clearly contributes to a large percent of negated words and thus an incorrect sentiment. I'd argue that the negatively associated words preceded by a negation word likely still contribute to an overall negative sentiment -- it's hard to come up with a truly positive sentence even when negating terms like "sorrow," "disgrace," and "dreadful."
+
+Because "love" is a word quite commonly used by MWS, I look a bit further into words that come before or after "love" to get a better sense of how she means for the word to come across. 
+```{r}
+# Quadgram for "love"
+quadgrams <- spooky_MWS %>%
+  unnest_tokens(quadgram, text, token = "ngrams", n = 4)
+
+quad_sep <- quadgrams %>%
+  separate(quadgram, c("word1", "word2", "word3", "word4"), sep = " ")
+
+quad_love <- quad_sep %>% 
+  filter(word1 == "love"| word2 == "love"| word3 == "love"| word4 == "love")
+
+# bigram for love, later. 
+sub <- select(quad_love, id, author, word3, word4)
+bigram_love <- sub %>%
+  filter(word4 == "love")
+
+head(quad_love)
+```
+After purusing the words that come before and after "love" in MWS's work, I sense sadness over positivity. I next try using the "afinn" lexicon to score four-word chunks for positive and negative sentiments rather than individual words. Ideally, I'd like to use the "nrc" lexicon to assess sadness rather than simply positivity or negativity, but because each sentence is built up of multiple words, I must use a numeric lexicon.  
+```{r}
+# combine words into sentences, rid of unused columns
+quad_love$text <- paste(quad_love$word1,"", quad_love$word2, "", quad_love$word3, "", quad_love$word4)
+sub <- select(quad_love, id, text) 
+
+# get sentiments for sentences with "love" in them
+love_sent <- sub %>%
+        group_by(id) %>%
+        unnest_tokens(word, text) %>%
+        inner_join(get_sentiments("afinn")) %>%
+        group_by(id) %>%
+        summarise(sentiment = sum(score, na.rm = TRUE)) %>%
+        arrange(desc(sentiment)) %>% 
+        mutate(sentence_num = row_number())
+
+head(love_sent)
+tail(love_sent)
+```
+Given the sentiment scores for sentences with the word "love" in them range between 0-54 (which are all positive numbers), I think I'm wrong! MWS may be writing about love in a positive way rather than a sad way. Next, I visualize the most frequent words that come before "love" and their corresponding contribution to either a negative or positive sentiment. 
+```{r}
+# Get rid of my own stop words. 
+my_stop_words <- c("of", "and", "to", "the", "a", "as", "that", "by")
+x <- removeWords(bigram_love$word3, my_stop_words)
+bigram_love$new <- x
+bigram_love$word3 <- bigram_love$new
+bigram_love$new <- NA
+
+loveplot1 <- bigram_love %>%
+  count(word3, word4) %>%
+  arrange(desc(n)) %>% 
+  filter(n > 1& n < 20) %>% 
+  spread(word4, n, fill = 0) %>% 
+  ggplot(., aes(x = reorder(word3, love), love, fill = love)) +
+  geom_col(alpha = 0.8) +
+  ggtitle("Words That Come Before Love") +
+  xlab(NULL) +
+  ylab(NULL) +
+  labs(fill='Frequency') +
+  coord_flip() +
+  theme_light() 
+
+loveplot2 <- bigram_love %>%
+  count(word3, word4) %>%
+  arrange(desc(n)) %>% 
+  spread(word4, n, fill = 0) %>%
+  inner_join(get_sentiments("afinn"), by = c(word3 = "word")) %>% 
+  arrange(desc(score)) %>% 
+  ggplot(., aes(x = reorder(word3, score * love), love * score, fill = love * score > 0)) +
+  geom_col(alpha = 0.8) +
+  xlab(NULL) +
+  ylab(NULL) +
+  scale_fill_discrete(name="Contribution to Sentiment", labels=c("Negative", "Positive")) +
+  coord_flip() +
+  theme_light()
+
+```
+
+```{r}
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/loveplts.png")
+layout <- matrix(c(1, 1, 1, 1, 2, 2, 2, 2), 2, 4, byrow = TRUE)
+multiplot(loveplot1, loveplot2, layout = layout)
+dev.off()
+```
+The top plot shows the most common words MWS uses before "love" in her work. Often, she's talking about her own love, and the words that follow seem primarily positive. The second visualization again cements the notion that MWS is usually speaking about something positive when she writes about love. However, it's clear that the "afinn" lexicon couldn't fully represent sentiments of all of the preceding words; for instance, the words "mutual" and "love" combined normally would denote positivity, but "afinn" doesn't have a sentiment for "mutual." I also noticed that MWS sometimes speaks about "unrequited" love, another word that the "afinn" lexicon doesn't define as positive or negative. 
+
+#### He/She
+
+
+#### Prediction Analysis
+Lastly, I use a linear model to try and predict the author of a batch of texts. First, I transform the tidy data into a document term matrix. 
+```{r}
+# Create Document Term Matrix
+testdtm <- spooky %>%
+  unnest_tokens(word, text) %>%
+  count(id, word) %>%
+  cast_dtm(id, word, n)
+
+# Add Author Column
+dtm1 <- as.matrix(testdtm)
+dtm1 <- dtm1 / rowSums(dtm1) * 1000
+dtm1 <- as.data.frame(dtm1)
+test <- spooky[,c("id","author")]
+dtm1$id <- rownames(dtm1)
+dtm1$author <- test$author[match(dtm1$id, test$id)]
+dtm1 <- as.matrix(dtm1)
+
+
+# Training and Testing 
+author <- rep(NA, nrow(dtm1))
+author["MWS"] <- 1 # 1 if MWS
+author["EAP"] <- -1 # -1 if EAP
+library(caret)
+dfdtm1 <- as.data.frame(dtm1)
+str_sub(dfdtm1$author",-3,-1)
+
+in_train <- createDataPartition(y = dfdtm1$author, p = 3 / 4, list = FALSE)
+training <- dfdtm1[ in_train, ] 
+testing  <- dfdtm1[-in_train, ]
+
+fit <- lm(author ~ love + life, data = training)
+pred <- predict(fit, newdata = testing)
+```
+
