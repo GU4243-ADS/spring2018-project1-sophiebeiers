@@ -4,7 +4,7 @@
 ----
 
 
-### [Project Description](doc/)
+### [Project Description](doc/project_description.Rmd)
 
 
 Term: Spring 2018
@@ -36,12 +36,14 @@ From the visualizations, we can see that EAP's sentence length is more variable 
 
 ### Pronouns
 Before removing "stop words" from each authors' pieces, I was curious to see which authors used certain personal pronouns more than others.
+
 ![](./figs/pronounplot.png)
 
 From the plot, we can see that MWS and EAP tend to talk about themselves more often than HPL. MWS writes about other women (her, she) more frequently than the male authors, perhaps not surprisingly. HPL seems to rarely refer to women in his work, though he is also seemingly less likely than the other authors to use pronouns in his writing at all.
 
 ### Most Common Words
 After removing the "stop words" from each author's text to make analysis a bit more exciting, I visualized each author's top ten words used in his/her work.
+
 ![](./figs/top10.png)
 
 Some of the authors' top ten most common words overlap; for instance, all three authors like to write about "time" and "day." We can also see, however, that the two male authors EAP and HPL have slightly more overlapping top words than with MWS. Both male authors frequently use the words "night" and "found." Other than the words all three authors have in common, EAP overlaps with MWS on the word "eyes" and HPL doesn't overlap with MWS at all. Given that MWS's top three words used are "life," "love," and "heart," we may assume that the content of MWS's work might be more emotional in nature compared to her male counterparts. Her frequent use of the name "Raymond" may be from her work "The Last Man."
@@ -59,7 +61,14 @@ To visualize each author's most frequent words further, I created three wordclou
 
 ![](./figs/eapWC.png)
 
-The wordclouds allow us to see that MWS's work is almost certainly more emotional than her counterparts'. Her work tends to paint a seemingly beautiful picture of nature, earth, family combined with suffering and grief. HPL's wordcloud exemplifies his use of creepier stories in his work. By linking together a few words like "street," "door," "horror," "dark," "terrible," "dream," "hideous," we can almost recreate a story ourselves. EAP's wordcloud doesn't immediately introduce an obvious (to me) theme other than potentially something spiritual, so I'll dig further through sentiment analysis next.
+The wordclouds allow us to see that MWS's work is almost certainly more emotional than her counterparts'. Her work tends to paint a seemingly beautiful picture of nature, earth, family combined with suffering and grief. HPL's wordcloud exemplifies his use of creepier stories in his work. By linking together a few words like "street," "door," "horror," "dark," "terrible," "dream," "hideous," we can almost recreate a story ourselves. EAP's wordcloud doesn't immediately introduce an obvious (to me) theme other than potentially something spiritual, so I'll dig further through sentiment analysis.
+
+### TF-IDF
+After looking into each author's top 10 words, I want to identify each author's most used word that is also unique to his/her work. The "tf-idf" is known as the product of term and inverse frequency. The "tf" is the number of times a word appeared in a document or set of documents. The "idf" measures this frequency in relation to others. The weight for more commonly used words is decreased and the weight for words that aren't used very much in a collection of texts is increased. Thus, the "tf-idf" is "intended to measure how important a word is to a document in a collection of documents" ([TidyTextMining](https://www.tidytextmining.com/tfidf.html)). Words that MWS uses frequently that aren't used as much by the other authors are in blue; EAP's most common and unique words are in red and HPL's are in green.
+
+![](./figs/tfidf.png)
+
+Many of the unique and important words that the authors use are names (MWS used "perdita", "adrian", "raymond" and "idris" while HPL uses "gilman"and "wilbur"). EAP seems to be the only author that uses French frequently in his writing. These charts give us a good idea of what words we would look for if we needed to predict which author wrote a specific piece. Next, I turn to sentiment analysis to understand the emotions and feelings behind each author's work.
 
 ### Sentiment Analysis
 Given all three authors have a known tendency toward spooky writing, I first wanted to assess whether sentiments of each author's words were more positive or negative. I used the "bing" lexicon to assess positive and negative sentiments and plotted the net sentiment of each word. The top left graph shows us how many negative and positive words the authors use overall. The graph to the right shows us the top ten most positive and most negative words used by all authors, and lastly the bottom chart illuminates how many words contributed most to positive and negative sentiment, per author.
@@ -87,4 +96,5 @@ Because "love" is a word quite commonly used by MWS, I look a bit further into w
 
 The top plot shows the most common words MWS uses before "love" in her work. Often, she's talking about her own love, and the words that follow seem primarily positive. The second visualization again cements the notion that MWS is usually speaking about something positive when she writes about love. However, it's clear that the "afinn" lexicon couldn't fully represent sentiments of all of the preceding words; for instance, the words "mutual" and "love" combined normally would denote positivity, but "afinn" doesn't have a sentiment for "mutual." I also noticed that MWS sometimes speaks about "unrequited" love, another word that the "afinn" lexicon doesn't define as positive or negative.
 
-### References 
+### References
+Some ideas and code were borrowed from [Text Mining in R](https://www.tidytextmining.com/) as well as Gokhan Ciflikli's [blog](https://www.gokhanciflikli.com/post/weinstein-effect/).

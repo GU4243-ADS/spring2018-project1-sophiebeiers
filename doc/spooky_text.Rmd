@@ -1,8 +1,13 @@
 ---
 title: "Spooky Poetry Text Analysis"
 author: "Sophie Beiers"
-date: "1/27/2018"
-output: html_document
+date: "2/5/2018"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: lumen
+    highlight: tango
 ---
 
 ```{r setup, include=FALSE}
@@ -12,12 +17,12 @@ knitr::opts_chunk$set(warning = FALSE)
 ```
 
 ### Introduction
-The goal of this project is to analyze the poetry of three "spooky" poets: H.P. Lovecraft (`HPL`), Mary Shelly (`MWS`), and Edgar Allen Poe (`EAP`). Below, I assess their similarities and differences in semantics, common words and themes and length of work. 
+The goal of this project is to analyze the work of three "spooky" authors: H.P. Lovecraft (`HPL`), Mary Shelly (`MWS`), and Edgar Allen Poe (`EAP`). Below, I assess their similarities and differences in semantics, common words and themes and length of work. I end by zooming in on MWS's work and her use of the word "love."
 
 #### Libraries Needed
 Code by Cindy Rush, Statistics Professor of Columbia University.
 ```{r, message = F, warning = F, message = F}
-packages.used <- c("ggplot2", "dplyr", "tibble", "tidyr",  "stringr", "tidytext", "topicmodels", "wordcloud", "ggridges", "sentimentr", "tm")
+packages.used <- c("ggplot2", "dplyr", "tibble", "tidyr",  "stringr", "tidytext", "topicmodels", "wordcloud", "ggridges", "sentimentr", "tm", "caret", "topicmodels")
 
 # check packages that need to be installed.
 packages.needed <- setdiff(packages.used, intersect(installed.packages()[,1], packages.used))
@@ -38,15 +43,17 @@ library(wordcloud)
 library(ggridges)
 library(sentimentr)
 library(tm)
+library(caret)
+library(topicmodels)
 
 
-source("./lib/multiplot.R")
+source("../lib/multiplot.R")
 ```
 
 ### Data & Cleaning
 To reproduce, download spooky.csv into your Documents/data folder. 
 ```{r}
-spooky <- read.csv('./data/spooky.csv', as.is = TRUE)
+spooky <- read.csv('../data/spooky.csv', as.is = TRUE)
 #sum(is.na(spooky)) # no NA's in data 
 spooky$author <- as.factor(spooky$author) # Make "author" a factor
 ```
@@ -207,10 +214,51 @@ wordcloud(words = EAPwords$word, freq = EAPwords$freq, max.words = 100,
 dev.off()
 ```
 
-Through the word clouds, we can see that MWS's work is almost certainly more emotional than her counterparts'. Her work tends to paint a seemingly beautiful picture of nature, earth, family combined with suffering and grief. HPL's wordcloud exemplifies his use of creepier stories in his work. By linking together a few words like "street," "door," "horror," "dark," "terrible," "dream," "hideous," we can almost recreate a story ourselves. EAP's wordcloud doesn't immediately introduce an obvious (to me) theme other than potentially something spiritual, so I'll dig further through sentiment analysis next.
+Through the word clouds, we can see that MWS's work is almost certainly more emotional than her counterparts'. Her work tends to paint a seemingly beautiful picture of nature, earth, family combined with suffering and grief. HPL's wordcloud exemplifies his use of creepier stories in his work. By linking together a few words like "street," "door," "horror," "dark," "terrible," "dream," "hideous," we can almost recreate a story ourselves. EAP's wordcloud doesn't immediately introduce an obvious (to me) theme other than potentially something spiritual, so I'll dig further through sentiment analysis.
+
+#### TF - IDF
+After looking into each author's top 10 words, I want to identify each author's most used word that is also unique to his/her work. The "tf-idf" is known as the product of term and inverse frequency. The "tf" is the number of times a word appeared in a document or set of documents. The "idf" measures this frequency in relation to others. The weight for more commonly used words is decreased and the weight for words that aren't used very much in a collection of texts is increased. Thus, the "tf-idf" is "intended to measure how important a word is to a document in a collection of documents" [TidyTextMining](https://www.tidytextmining.com/tfidf.html). Words that MWS uses frequently that aren't used as much by the other authors are in blue; EAP's most common and unique words are in red and HPL's are in green. 
+```{r}
+spooky_wrd_clean %>% 
+  ggplot(aes(rank, freq, color = author)) + 
+  geom_line(size = 1.1, alpha = 0.8) + 
+  scale_x_log10() +
+  scale_y_log10() +
+  xlab("Rank") +
+  ylab("Word Frequency") +
+  theme_light()
+```
+First, I plotted the relationship between the author's most frequently used words and their rank. 
+We can see that the relationship between each word's rank and frequency has a negative slope and that all three authors' work follows this pattern. Then, I plot the tf-idfs to see which words are most important to each author.
+
+```{r}
+idftf <- spooky_wrd_clean %>% 
+  bind_tf_idf(word, author, n)
+
+idftf <- idftf %>%
+  select(-total) %>%
+  arrange(desc(tf_idf))
+
+png("~/Documents/GitHub/spring2018-project1-sophiebeiers/figs/tfidf.png")
+idftf %>%
+  arrange(desc(tf_idf)) %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>% 
+  group_by(author) %>% 
+  top_n(15) %>% 
+  ungroup %>%
+  ggplot(aes(reorder(word,tf_idf), tf_idf, fill = author)) +
+  geom_col(show.legend = FALSE) +
+  labs(x = NULL, y = "tf-idf") +
+  facet_wrap(~author, ncol = 2, scales = "free") +
+  coord_flip() +
+  theme_light()
+dev.off()
+
+```
+Many of the unique and important words that the authors use are names (MWS used "perdita", "adrian", "raymond" and "idris" while HPL uses "gilman"and "wilbur"). EAP seems to be the only author that uses French frequently in his writing. These charts give us a good idea of what words we would look for if we needed to predict which author wrote a specific piece. Next, I turn to sentiment analysis to understand the emotions and feelings behind each author's work. 
 
 #### Sentiment Analysis 
-#### Positive v. Negative 
+##### Positive v. Negative 
 Given all three authors have a known tendency toward spooky writing, I first wanted to assess whether sentiments of each author's words were more positive or negative. I used the "bing" lexicon to assess positive and negative sentiments and plotted the net sentiment of each word. The first graph shows us the top ten most positive and most negative words used by all authors; the second chart illuminates the words that contributed to positive and negative sentiment, per author. 
 ```{r, message = FALSE}
 pn_sentiments <- spooky_wrd_clean %>%
@@ -282,7 +330,7 @@ The heatmap depicts each author's most commonly used words and their correspondi
 
 Ironically, while MWS seems to be the most "positive" author, she still uses a quarter more negative words than positive words in her pieces; this leads me to think that it's possible she may be negating the positive words in a way that makes the overall sentiment actually *negative.* Thus, I turn to the "sentimentr" package to analyze multiple words at a time. 
 
-#### MWS 
+####$ MWS 
 The text in our spooky data is already split up into sentences, so I return to our original spooky data for the following analyses. 
 ```{r, warning = FALSE, message= FALSE}
 ## WHY THIS??
@@ -415,8 +463,6 @@ dev.off()
 ```
 The top plot shows the most common words MWS uses before "love" in her work. Often, she's talking about her own love, and the words that follow seem primarily positive. The second visualization again cements the notion that MWS is usually speaking about something positive when she writes about love. However, it's clear that the "afinn" lexicon couldn't fully represent sentiments of all of the preceding words; for instance, the words "mutual" and "love" combined normally would denote positivity, but "afinn" doesn't have a sentiment for "mutual." I also noticed that MWS sometimes speaks about "unrequited" love, another word that the "afinn" lexicon doesn't define as positive or negative. 
 
-#### He/She
-
 
 #### Prediction Analysis
 Lastly, I use a linear model to try and predict the author of a batch of texts. First, I transform the tidy data into a document term matrix. 
@@ -427,29 +473,53 @@ testdtm <- spooky %>%
   count(id, word) %>%
   cast_dtm(id, word, n)
 
+head(findFreqTerms(testdtm, lowfreq = 100)) # view terms that appear at least 100 times
+findAssocs(testdtm, "life", corlimit = 0.5)
+plot(testdtm, terms = findFreqTerms(testdtm, lowfreq = 100), 
+     corThreshold = 0.05)
+
+#testdtm <- as.matrix(testdtm)
+list(which(test$author == "MWS"))
+
 # Add Author Column
-dtm1 <- as.matrix(testdtm)
-dtm1 <- dtm1 / rowSums(dtm1) * 1000
-dtm1 <- as.data.frame(dtm1)
-test <- spooky[,c("id","author")]
-dtm1$id <- rownames(dtm1)
-dtm1$author <- test$author[match(dtm1$id, test$id)]
-dtm1 <- as.matrix(dtm1)
+#dtm1 <- data.frame(as.matrix(testdtm))
+#test <- spooky[,c("id","author")]
+#merged <- merge(test, dtm1, by.x = "id", by.y = "row.names" )
+#merged <- as.data.frame(merged)
+#head(merged)
+#merged <- as.numeric(merged[ ,3:25618])
+#merged <- merged / rowSums(merged[ sapply(merged, is.numeric)]) * 1000
+
+dtm.sparse <- sparseMatrix(testdtm$i, testdtm$j, x = testdtm$v, 
+                           dims = c(testdtm$nrow, testdtm$ncol), 
+                           dimnames = testdtm$dimnames)
+
+dtm.sparse <- dtm.sparse/rowSums(dtm.sparse) * 1000
 
 
+list(which(test$author == "MWS"))
+#dtm.sparse <- merge(test, dtm.sparse, by.x = "id", by.y = "row.names" )
+
+# TRied this, didn't like to classify 
+dtm.lda <- LDA(weightTf(dtm.sparse), k = 3) # LDA function, 3 clusters
+table <- round(head(posterior(dtm.lda, dtm.sparse)$topics), digits = 2) # create shortened table of probabilities 
+table2 <- round((posterior(dtm.lda, dtm.sparse)$topics), digits = 2) # full table with all probabilities for own use
+table
+
+                    
 # Training and Testing 
-author <- rep(NA, nrow(dtm1))
-author["MWS"] <- 1 # 1 if MWS
-author["EAP"] <- -1 # -1 if EAP
-library(caret)
-dfdtm1 <- as.data.frame(dtm1)
-str_sub(dfdtm1$author",-3,-1)
+#author <- rep(NA, nrow(dtm1))
+#author["MWS"] <- 1 # 1 if MWS
+#author["EAP"] <- -1 # -1 if EAP
 
-in_train <- createDataPartition(y = dfdtm1$author, p = 3 / 4, list = FALSE)
-training <- dfdtm1[ in_train, ] 
-testing  <- dfdtm1[-in_train, ]
+#in_train <- createDataPartition(y = merged$author.x, p = 3 / 4, list = FALSE)
+#training <- merged[ in_train, ] 
+#testing  <- merged[-in_train, ]
 
-fit <- lm(author ~ love + life, data = training)
-pred <- predict(fit, newdata = testing)
+#fit <- lm(author.x ~ love + life, data = training)
+#pred <- predict(fit, newdata = testing)
+
+#table(testing$author.x, pred)
+
 ```
 
