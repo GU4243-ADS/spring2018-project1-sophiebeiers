@@ -102,4 +102,4 @@ The top plot shows the most common words MWS uses before "love" in her work. Oft
 Lastly, I ran a K-means analysis on specifically MWS's work. The analysis clustered her work into four clusters that seemed to fit into sensible categories, but this analysis ultimately did not reveal much more about the sentiments or tendencies of MWS's work.
 
 ### References
-Some ideas and code were borrowed from [Text Mining in R](https://www.tidytextmining.com/), Cindy as well as Gokhan Ciflikli's [blog](https://www.gokhanciflikli.com/post/weinstein-effect/).
+Some ideas and code were borrowed from [Text Mining in R](https://www.tidytextmining.com/), Cindy Rush (Statistics Professor, Columbia University), as well as Gokhan Ciflikli's [blog](https://www.gokhanciflikli.com/post/weinstein-effect/).
