@@ -1,5 +1,5 @@
 ---
-title: "Spooky Poetry Text Analysis"
+title: "Spooky Text Analysis"
 author: "Sophie Beiers"
 date: "2/5/2018"
 output: 
