@@ -72,12 +72,12 @@ After looking into each author's top 10 words, I want to identify each author's 
 Many of the unique and important words that the authors use are names (MWS used "perdita", "adrian", "raymond" and "idris" while HPL uses "gilman"and "wilbur"). EAP seems to be the only author that uses French frequently in his writing. These charts give us a good idea of what words we would look for if we needed to predict which author wrote a specific piece. Next, I turn to sentiment analysis to understand the emotions and feelings behind each author's work.
 
 ### Sentiment Analysis
-Given all three authors have a known tendency toward spooky writing, I first wanted to assess whether sentiments of each author's words were more positive or negative. I used the "bing" lexicon to assess positive and negative sentiments and plotted the net sentiment of each word. The top left graph shows us how many negative and positive words the authors use overall. The graph to the right shows us the top ten most positive and most negative words used by all authors, and lastly the bottom chart illuminates how many words contributed most to positive and negative sentiment, per author.
+Given all three authors have a known tendency toward "spooky" writing, I first wanted to assess whether sentiments of each author's words were more positive or negative. I used the "bing" lexicon to assess positive and negative sentiments and plotted the net sentiment of each word. The top left graph shows us how many negative and positive words the authors use overall. The graph to the right shows us the top ten most positive and most negative words used by all authors, and lastly, the bottom chart illuminates how many words contributed most to positive and negative sentiment, per author.
 
 ![](./figs/posnegwords.png)
 
 
-From my analysis, it looks as though MWS uses words that are more frequently categorized as positive as well as more words that are categorized as negative in comparison to both EAP and HPL. It's possible that MWS simply writes more words that are in the "bing" lexicon, but her positive words almost double HPL's number of positive words, so I want to dig a little further. I visualize the sentiment score of each author's top 1000 used words below with a heat map. Sentiment scores are based on the "afinn" lexicon that gives a numerical assessment to each word; the more negative the number, the more negative the sentiment (and visa versa). A more positive word will appear as a light yellow/green and a negative word will appear more blue.  
+From my analysis, it looks as though MWS uses words that are more frequently categorized as positive as well as more words that are categorized as negative in comparison to both EAP and HPL. It's possible that MWS simply writes more words that are in the "bing" lexicon, but her positive words almost double HPL's number of positive words, so I want to dig a little further. I visualize the sentiment score of each author's top 1000 used words below with a heat map. Sentiment scores are based on the "AFINN" lexicon that gives a numerical assessment to each word; the more negative the number, the more negative the sentiment (and visa versa). A more positive word will appear as a light yellow/green and a negative word will appear more blue.  
 
 ![](./figs/posneghm.png)
 
@@ -86,7 +86,7 @@ The heatmap depicts each author's most commonly used words and their correspondi
 Ironically, while MWS seems to be the most "positive" author, she still uses a quarter more negative words than positive words in her pieces; this leads me to think that it's possible she may be negating the positive words in a way that makes the overall sentiment actually *negative.* Thus, I turn to the "sentimentr" package to analyze multiple words at a time and focus in on MWS.
 
 ### Zooming in: Mary Shelley
-To examine whether MWS' high scores on positivity in her work was actually due to negated positive words, I used bigrams and the "AFINN" lexicon to view all words preceded by a negation; From the visualization, we can see which positive-seeming words contribute most to mis-classification.
+To examine whether MWS' high scores on positivity in her work was actually due to negated positive words, I used bigrams and the "AFINN" lexicon to view all words preceded by a negation; from the visualization, we can see which positive-seeming words contribute most to mis-classification.
 
 ![](./figs/negwrds.png)
 
@@ -96,7 +96,7 @@ Because "love" is a word quite commonly used by MWS, I look a bit further into w
 
 ![](./figs/loveplts.png)
 
-The top plot shows the most common words MWS uses before "love" in her work. Often, she's talking about her own love, and the words that follow seem primarily positive. The second visualization again cements the notion that MWS is usually speaking about something positive when she writes about love. However, it's clear that the "afinn" lexicon couldn't fully represent sentiments of all of the preceding words; for instance, the words "mutual" and "love" combined normally would denote positivity, but "afinn" doesn't have a sentiment for "mutual." I also noticed that MWS sometimes speaks about "unrequited" love, another word that the "afinn" lexicon doesn't define as positive or negative.
+The top plot shows the most common words MWS uses before "love" in her work. Often, she's talking about her own love, and the words that follow seem primarily positive. The second visualization again cements the notion that MWS is usually speaking about something positive when she writes about love. However, it's clear that the "AFINN" lexicon couldn't fully represent sentiments of all of the preceding words; for instance, the words "mutual" and "love" combined normally would denote positivity, but "AFINN" doesn't have a sentiment for "mutual." I also noticed that MWS sometimes speaks about "unrequited" love, another word that the "AFINN" lexicon doesn't define as positive or negative.
 
 #### K-means Clustering
 Lastly, I ran a K-means analysis on specifically MWS's work. The analysis clustered her work into four clusters that seemed to fit into sensible categories, but this analysis ultimately did not reveal much more about the sentiments or tendencies of MWS's work.
