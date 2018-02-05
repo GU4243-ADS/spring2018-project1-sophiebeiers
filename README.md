@@ -10,8 +10,9 @@
 Term: Spring 2018
 
 + Project title: *Spooky Text Mining*
-+ This project is conducted by myself, Sophie Beiers.
-+ Project summary: For this project, I used data consisting of excerpts of texts written by Edgar Allen Poe, HP Lovecraft and Mary Shelley, all popular horror authors. The data was originally used in a Kaggle competition[https://www.kaggle.com/c/spooky-author-identification] with the goal of using NLP to classify and identify the author of each texts. For this particular project, I used exploratory data analysis in order to identify similarities and differences between the authors.  
++ Author: Sophie Beiers
++ Project summary: For this project, I used data consisting of excerpts of texts written by [Edgar Allen Poe](https://en.wikipedia.org/wiki/Edgar_Allan_Poe), [HP Lovecraft](https://en.wikipedia.org/wiki/H._P._Lovecraft) and [Mary Shelley](https://en.wikipedia.org/wiki/Mary_Shelley), all well-known horror authors. The data was originally used in a [Kaggle](https://www.kaggle.com/c/spooky-author-identification) competition with the goal of using NLP to classify and identify the author of each texts. For this particular project, I used exploratory data analysis and sentiment analysis in order to identify similarities and differences between the authors.
+
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is organized as follows.
 
@@ -75,6 +76,7 @@ Given all three authors have a known tendency toward spooky writing, I first wan
 
 ![](./figs/posnegwords.png)
 
+
 From my analysis, it looks as though MWS uses words that are more frequently categorized as positive as well as more words that are categorized as negative in comparison to both EAP and HPL. It's possible that MWS simply writes more words that are in the "bing" lexicon, but her positive words almost double HPL's number of positive words, so I want to dig a little further. I visualize the sentiment score of each author's top 1000 used words below with a heat map. Sentiment scores are based on the "afinn" lexicon that gives a numerical assessment to each word; the more negative the number, the more negative the sentiment (and visa versa). A more positive word will appear as a light yellow/green and a negative word will appear more blue.  
 
 ![](./figs/posneghm.png)
@@ -83,7 +85,7 @@ The heatmap depicts each author's most commonly used words and their correspondi
 
 Ironically, while MWS seems to be the most "positive" author, she still uses a quarter more negative words than positive words in her pieces; this leads me to think that it's possible she may be negating the positive words in a way that makes the overall sentiment actually *negative.* Thus, I turn to the "sentimentr" package to analyze multiple words at a time and focus in on MWS.
 
-#### Zooming in: Mary Shelley
+### Zooming in: Mary Shelley
 To examine whether MWS' high scores on positivity in her work was actually due to negated positive words, I used bigrams and the "AFINN" lexicon to view all words preceded by a negation; From the visualization, we can see which positive-seeming words contribute most to mis-classification.
 
 ![](./figs/negwrds.png)
@@ -96,5 +98,8 @@ Because "love" is a word quite commonly used by MWS, I look a bit further into w
 
 The top plot shows the most common words MWS uses before "love" in her work. Often, she's talking about her own love, and the words that follow seem primarily positive. The second visualization again cements the notion that MWS is usually speaking about something positive when she writes about love. However, it's clear that the "afinn" lexicon couldn't fully represent sentiments of all of the preceding words; for instance, the words "mutual" and "love" combined normally would denote positivity, but "afinn" doesn't have a sentiment for "mutual." I also noticed that MWS sometimes speaks about "unrequited" love, another word that the "afinn" lexicon doesn't define as positive or negative.
 
+#### K-means Clustering
+Lastly, I ran a K-means analysis on specifically MWS's work. The analysis clustered her work into four clusters that seemed to fit into sensible categories, but this analysis ultimately did not reveal much more about the sentiments or tendencies of MWS's work.
+
 ### References
-Some ideas and code were borrowed from [Text Mining in R](https://www.tidytextmining.com/) as well as Gokhan Ciflikli's [blog](https://www.gokhanciflikli.com/post/weinstein-effect/).
+Some ideas and code were borrowed from [Text Mining in R](https://www.tidytextmining.com/), Cindy as well as Gokhan Ciflikli's [blog](https://www.gokhanciflikli.com/post/weinstein-effect/).
